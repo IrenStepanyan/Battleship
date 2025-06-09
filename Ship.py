@@ -1,3 +1,10 @@
+from enum import Enum
+
+class Orientation(Enum):
+    HORIZONTAL = 'H'
+    VERTICAL = 'V'
+
+
 class Ship:
     def __init__(self, size):
         self.size = size
@@ -13,25 +20,36 @@ class Ship:
         return self.hits >= self.size
 
     def place_ship(self, start_row, start_col, orientation):
-        if orientation not in ["horizontal", "vertical"]:
-            raise ValueError("Orientation must be 'horizontal' or 'vertical'")
+        # Normalize orientation from Enum or string
+        if isinstance(orientation, Orientation):
+            orientation = orientation.value
+        orientation = orientation.upper()
+        if orientation not in ["H", "V"]:
+            raise ValueError("Orientation must be 'H' or 'V'")
+
+        self.orientation = Orientation(orientation)  # Store as Enum
 
         positions = []
         for i in range(self.size):
-            row = start_row + (i if orientation == "vertical" else 0)
-            col = start_col + (i if orientation == "horizontal" else 0)
-
+            row = start_row + (i if orientation == "V" else 0)
+            col = start_col + (i if orientation == "H" else 0)
             if not (0 <= row <= 9 and 0 <= col <= 9):
                 raise ValueError("Ship placement is out of board bounds")
-
             positions.append((row, col))
 
         self.position = positions
-        self.orientation = orientation
         self.is_placed = True
 
     def get_positions(self):
         return self.position
+
+    def __str__(self):
+        return f"{self.__class__.__name__} at {self.position}, hits: {self.hits}"
+
+    @classmethod
+    def reset_counters(cls):
+        for ship_class in [Battleship, Cruiser, Submarine, Destroyer]:
+            ship_class.placed_count = 0
 
 
 class Battleship(Ship):
@@ -76,3 +94,4 @@ class Destroyer(Ship):
             raise ValueError("Cannot create more than 4 Destroyers")
         super().__init__(size=1)
         Destroyer.placed_count += 1
+
