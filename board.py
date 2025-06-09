@@ -21,7 +21,7 @@ class Board:
         for row, col in positions:
             self.grid[row][col] = "S"
         ship.is_placed = True
-        ship.positions = positions
+        ship.position = positions
 
     def receive_attack(self, row, col):
        
