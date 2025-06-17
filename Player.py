@@ -1,84 +1,57 @@
-from enum import Enum
 from Board import Board
-from Ship import Ship
+from Ship import Battleship, Cruiser, Submarine, Destroyer
 
-COLUMNS = "ABCDEFGHIJ"
-
-class Orientation(Enum):
-    HORIZONTAL = 'H'
-    VERTICAL = 'V'
+COLUMNS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 
 class Player:
-    def __init__(self, name, board, opponent_board, ships_to_place):
+    def __init__(self, name, board: Board, opponent_board: Board):
         self.name = name
         self.board = board
         self.opponent_board = opponent_board
-        self.ships_to_place = ships_to_place
-        self.ships_placed = False
+        # Dict: key -> (Ship name, Ship class, remaining count, size)
+        self.ships_to_place = {
+            1: ('Battleship', Battleship, 1, 4),
+            2: ('Cruiser', Cruiser, 2, 3),
+            3: ('Submarine', Submarine, 3, 2),
+            4: ('Destroyer', Destroyer, 4, 1),
+        }
 
     def place_ships(self):
-        print(f"Dear {self.name}, please place your ships on the board.")
-        for ship in self.ships_to_place:
-            if ship.is_placed:
+        while any(count > 0 for (_, _, count, _) in self.ships_to_place.values()):
+            print("\nShips left to place:")
+            for key, (name, _, count, size) in self.ships_to_place.items():
+                if count > 0:
+                    print(f"{key}. {name} (size {size}) - {count} left")
+
+            choice = input("Choose ship number to place: ").strip()
+            if not choice.isdigit() or int(choice) not in self.ships_to_place:
+                print("Invalid choice, try again.")
                 continue
 
-            print(f"\nPlacing ship: {ship.__class__.__name__} (size {ship.size})")
-            while True:
-                try:
-                    start = input("Enter starting position (row 0–9, col A–J, e.g. 3 C): ").split()
-                    if len(start) != 2:
-                        print("Please enter row and column separated by space.")
-                        continue
+            choice = int(choice)
+            name, ship_class, count, size = self.ships_to_place[choice]
+            if count == 0:
+                print(f"No {name}s left to place. Choose another ship.")
+                continue
 
-                    try:
-                        row = int(start[0])
-                    except ValueError:
-                        print("Row must be a number.")
-                        continue
+            try:
+                pos = input(f"Enter start position for {name} (e.g., A5): ").upper().strip()
+                orientation = input("Orientation (H for Horizontal, V for Vertical): ").upper().strip()
+                row = int(pos[1:]) - 1
+                col = ord(pos[0]) - ord('A')
 
-                    if not (0 <= row <= 9):
-                        print("Row must be between 0 and 9.")
-                        continue
-
-                    col_letter = start[1].upper()
-                    if col_letter not in COLUMNS:
-                        print("Column must be between A and J.")
-                        continue
-
-                    col = COLUMNS.index(col_letter)
-
-                    orientation_input = input("Enter orientation (H or V): ").upper()
-                    if orientation_input not in [o.value for o in Orientation]:
-                        print("Invalid orientation. Use 'H' or 'V'.")
-                        continue
-
-                    orientation = Orientation(orientation_input)
-
-                    if orientation == Orientation.HORIZONTAL:
-                        if col + ship.size > self.board.size:
-                            print("Ship doesn't fit horizontally. Try again.")
-                            continue
-                        positions = [(row, col + i) for i in range(ship.size)]
-                    else:
-                        if row + ship.size > self.board.size:
-                            print("Ship doesn't fit vertically. Try again.")
-                            continue
-                        positions = [(row + i, col) for i in range(ship.size)]
-
-                    if any(self.board.grid[r][c] != "~" for r, c in positions):
-                        print("Overlap detected. Try again.")
-                        continue
-
-                    self.board.place_ships(ship, positions)
-                    print(f"{ship.__class__.__name__} placed.")
+                ship = ship_class()
+                placed = ship.place_ship(row, col, orientation, self.board)
+                if placed:
+                    print(f"{name} placed successfully!")
+                    self.ships_to_place[choice] = (name, ship_class, count - 1, size)
                     self.board.display(hide_ships=False)
-                    break
+                else:
+                    print("Invalid position. Try again.")
+            except Exception as e:
+                print(f"Error: {e}. Try again.")
 
-                except Exception as e:
-                    print("Error:", e)
 
-        self.ships_placed = True
-        print(f"\nAll ships placed for {self.name}.")
 
     def make_attack(self, opponent):
         print(f"\n{self.name}, it's your turn to attack!")
@@ -106,7 +79,7 @@ class Player:
                 elif result == "miss":
                     print("Miss.")
                     self.opponent_board.grid[row][col] = "O"
-                break
+                return result
 
             except ValueError:
                 print("Row must be an integer.")
@@ -120,8 +93,12 @@ class Player:
     def restart(self):
         self.board = Board()
         self.opponent_board = Board()
-        self.ships_placed = False
-        for ship in self.ships_to_place:
-            ship.hits = 0
-            ship.position = []
-            ship.is_placed = False
+        self.hits = 0
+        self.misses = 0
+        self.total_moves = 0
+        self.ships_to_place = {
+            1: ('Battleship', Battleship, 1, 4),
+            2: ('Cruiser', Cruiser, 2, 3),
+            3: ('Submarine', Submarine, 3, 2),
+            4: ('Destroyer', Destroyer, 4, 1),
+        }
