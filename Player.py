@@ -8,7 +8,7 @@ class Player:
         self.name = name
         self.board = board
         self.opponent_board = opponent_board
-        # Dict: key -> (Ship name, Ship class, remaining count, size)
+
         self.ships_to_place = {
             1: ('Battleship', Battleship, 1, 4),
             2: ('Cruiser', Cruiser, 2, 3),
