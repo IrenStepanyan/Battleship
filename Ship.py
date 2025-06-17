@@ -4,7 +4,6 @@ class Orientation(Enum):
     HORIZONTAL = 'H'
     VERTICAL = 'V'
 
-
 class Ship:
     def __init__(self, size):
         self.size = size
@@ -19,26 +18,38 @@ class Ship:
     def is_sunk(self):
         return self.hits >= self.size
 
-    def place_ship(self, start_row, start_col, orientation):
-        # Normalize orientation from Enum or string
+    def place_ship(self, start_row, start_col, orientation, board):
         if isinstance(orientation, Orientation):
             orientation = orientation.value
         orientation = orientation.upper()
         if orientation not in ["H", "V"]:
             raise ValueError("Orientation must be 'H' or 'V'")
 
-        self.orientation = Orientation(orientation)  # Store as Enum
-
+        self.orientation = Orientation(orientation)
         positions = []
+
         for i in range(self.size):
             row = start_row + (i if orientation == "V" else 0)
             col = start_col + (i if orientation == "H" else 0)
+
             if not (0 <= row <= 9 and 0 <= col <= 9):
                 raise ValueError("Ship placement is out of board bounds")
+            
+            for r in range(row - 1, row + 2):
+                for c in range(col - 1, col + 2):
+                    if 0 <= r <= 9 and 0 <= c <= 9:
+                        if board.grid[r][c] != "~":
+                            raise ValueError("Ships cannot touch each other, even diagonally")
+
             positions.append((row, col))
+
+  
+        for row, col in positions:
+            board.grid[row][col] = "S"
 
         self.position = positions
         self.is_placed = True
+        return positions
 
     def get_positions(self):
         return self.position
@@ -94,4 +105,3 @@ class Destroyer(Ship):
             raise ValueError("Cannot create more than 4 Destroyers")
         super().__init__(size=1)
         Destroyer.placed_count += 1
-
