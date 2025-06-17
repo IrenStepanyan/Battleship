@@ -1,7 +1,7 @@
 import os
 from Board import Board
 from Player import Player
-from Ship import Ship, Battleship, Cruiser, Submarine, Destroyer
+from Ship import Ship
 
 class BattleShipGame:
 
@@ -16,21 +16,6 @@ class BattleShipGame:
     def clean_screen(self):
         os.system('cls' if os.name == 'nt' else 'clear')
 
-    def create_fleet(self):
-        fleet = []
-        try:
-            fleet.append(Battleship())
-            for _ in range(2):
-                fleet.append(Cruiser())
-            for _ in range(3):
-                fleet.append(Submarine())
-            for _ in range(4):
-                fleet.append(Destroyer())
-        except ValueError as e:
-            print(f"Error creating fleet: {e}")
-            return None
-        return fleet
-
     def welcome(self):
         print("=" * 50)
         print("Welcome to BattleShip Game") 
@@ -38,7 +23,7 @@ class BattleShipGame:
         print("Rules:")
         print("1. Each player places 10 ships: 1 Battleship(4), 2 Cruiser(3), 3 Submarine(2), 4 Destroyer(1)")
         print("2. Players take turns to attack the opponent's board")
-        print("3. If you hit, you opponent skips the move") 
+        print("3. If you hit, your opponent skips the move") 
         print("4. First to sink all enemy ships wins")
         print("Good luck!")
         print("=" * 50)
@@ -56,7 +41,7 @@ class BattleShipGame:
         return player1_name, player2_name
 
     def setup_players(self):
-        Ship.reset_counters()
+        Ship.reset_counters()  
 
         player1_name, player2_name = self.name_player()
 
@@ -65,17 +50,9 @@ class BattleShipGame:
         player2_board = Board()
         player2_opponent_board = Board()
 
-        player1_fleet = self.create_fleet()
-        if player1_fleet is None:
-            return False
         
-        Ship.reset_counters()
-        player2_fleet = self.create_fleet()
-        if player2_fleet is None:
-            return False
-
-        self.player1 = Player(player1_name, player1_board, player1_opponent_board, player1_fleet)
-        self.player2 = Player(player2_name, player2_board, player2_opponent_board, player2_fleet)
+        self.player1 = Player(player1_name, player1_board, player1_opponent_board)
+        self.player2 = Player(player2_name, player2_board, player2_opponent_board)
         return True
 
     def ship_placement_phase(self):
