@@ -37,7 +37,7 @@ class Player:
             try:
                 pos = input(f"Enter start position for {name} (e.g., A5): ").upper().strip()
                 orientation = input("Orientation (H for Horizontal, V for Vertical): ").upper().strip()
-                row = int(pos[1:]) 
+                row = int(pos[1]) 
                 col = ord(pos[0]) - ord('A')
 
                 ship = ship_class()
