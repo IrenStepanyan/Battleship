@@ -147,7 +147,7 @@ class BattleShipGame:
                     self.clean_screen()
                     print("Starting new game..")
                     self.reset_game()
-            else:  # failed to start
+            else: 
                 if not self.play_again():	
                     break
                 else:
