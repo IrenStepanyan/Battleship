@@ -1,14 +1,11 @@
-from game import BattleShipGame
+import tkinter as tk
+from gui_test import BattleshipGUI
 
 def main():
-    try:
-        battleship = BattleShipGame()
-        battleship.run()
-    except ImportError as e:
-        print(f"Error importing game modules: {e}")
-        print("\nMake sure all game files are in the same directory.")
-    except Exception as e:
-        print(f"Error: {e}")
+    root = tk.Tk()
+    game = BattleshipGUI(root)
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
+

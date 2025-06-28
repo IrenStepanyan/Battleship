@@ -1,240 +1,239 @@
-
 import tkinter as tk
-from PIL import Image, ImageTk
 from tkinter import messagebox
-
+from PIL import Image, ImageTk
+from Board import Board
+from Player import Player
+from Ship import Battleship, Cruiser, Submarine, Destroyer, Ship
 
 CELL_SIZE = 50
 GRID_SIZE = 10
-SHIPS = {
-    'Battleship': {'size': 4, 'image': 'Battleship.png', 'count': 1},
-    'Cruiser': {'size': 3, 'image': 'Cruiser.png', 'count': 2},
-    'Submarine': {'size': 2, 'image': 'Submarine.png', 'count': 3},
-    'Destroyer': {'size': 1, 'image': 'Destroyer.png', 'count': 4}
+MARGIN = 30  # for labels like A–J and 0–9
+
+# Updated SHIP_CLASSES with 4 values per ship: (Class, count, size, image filename)
+SHIP_CLASSES = {
+    'Battleship': (Battleship, 1, 4, 'Battleship.png'),
+    'Cruiser': (Cruiser, 2, 3, 'Cruiser.png'),
+    'Submarine': (Submarine, 3, 2, 'Submarine.png'),
+    'Destroyer': (Destroyer, 4, 1, 'Destroyer.png')
 }
 
-class BattleshipGame:
+class BattleshipGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Battleship Game")
-        self.selected_ship = None
-        self.orientation = 'horizontal'
-        self.placed_ships = []
-        self.available_ships = {name: info['count'] for name, info in SHIPS.items()}
+        self.root.title("Battleship 2-Player")
         self.images = {}
-        
-        self.main_frame = tk.Frame(root)
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        self.player_frame = tk.Frame(self.main_frame)
-        self.player_frame.pack(side=tk.LEFT, padx=20, pady=20)
-        
-        self.opponent_frame = tk.Frame(self.main_frame)
-        self.opponent_frame.pack(side=tk.RIGHT, padx=20, pady=20)
-        
-        self.create_canvases()
-        
+        self.selected_ship = None
+        self.orientation = 'H'
+        self.phase = "placement_p1"
+        self.player1 = Player("Player 1", Board(), Board())
+        self.player2 = Player("Player 2", Board(), Board())
+        self.current_player = self.player1
+        self.opponent = self.player2
+        self.remaining_ships = self.init_remaining_ships()
+
         self.load_images()
-        
-        self.draw_boards()
-        self.draw_ship_selection()
-        
-        self.player_canvas.bind("<Button-1>", self.handle_click)
-        self.root.bind("<r>", self.rotate_ship)
-        
-        self.status_label = tk.Label(root, text="Select a ship below, then click on grid to place. Press 'R' to rotate.", 
-                                   font=('Arial', 10))
-        self.status_label.pack()
-    
-    def create_canvases(self):
-        self.player_canvas = tk.Canvas(
-            self.player_frame, 
-            width=CELL_SIZE*GRID_SIZE, 
-            height=CELL_SIZE*GRID_SIZE + 120,
-            bg="white"
-        )
-        self.player_canvas.pack()
-        
-        self.opponent_canvas = tk.Canvas(
-            self.opponent_frame,
-            width=CELL_SIZE*GRID_SIZE,
-            height=CELL_SIZE*GRID_SIZE,
-            bg="white"
-        )
-        self.opponent_canvas.pack()
-        
-        tk.Label(self.player_frame, text="Your Fleet", font=('Arial', 12)).pack()
-        tk.Label(self.opponent_frame, text="Enemy Waters", font=('Arial', 12)).pack()
-    
+        self.setup_gui()
+
+    def init_remaining_ships(self):
+        return {name: count for name, (_, count, _, _) in SHIP_CLASSES.items()}
+
     def load_images(self):
         try:
-            water_img = Image.open("water.png")
+            water_img = Image.open("assets/water.png")
             self.images['water'] = ImageTk.PhotoImage(water_img.resize(
-                (CELL_SIZE*GRID_SIZE, CELL_SIZE*GRID_SIZE)))
-            
-            for name, info in SHIPS.items():
-                img = Image.open(info['image'])
-                
-                if info['size'] > 1: 
-                    width = CELL_SIZE * info['size']
+                (CELL_SIZE * GRID_SIZE, CELL_SIZE * GRID_SIZE)))
+
+            for name, (_, _, size, image_file) in SHIP_CLASSES.items():
+                img = Image.open(f"assets/{image_file}")
+
+                if size > 1:
+                    width = CELL_SIZE * size
                     height = CELL_SIZE
-                    
+
                     img = img.resize((width, height), Image.LANCZOS)
                     self.images[name] = ImageTk.PhotoImage(img)
-                   
+
                     vertical_img = img.rotate(90, expand=True)
-                    self.images[f"{name}_vertical"] = ImageTk.PhotoImage(vertical_img)
-                else:  
+                    self.images[f"{name}_V"] = ImageTk.PhotoImage(vertical_img)
+                else:
                     img = img.resize((CELL_SIZE, CELL_SIZE), Image.LANCZOS)
                     self.images[name] = ImageTk.PhotoImage(img)
-                    
+
         except Exception as e:
             print(f"Error loading images: {e}")
             messagebox.showerror("Image Error", "Could not load game images!")
             self.root.destroy()
-    
+
+    def setup_gui(self):
+        self.status_label = tk.Label(self.root, text="Player 1: Place your ships (click to place, press 'R' or click Rotate to turn)", font=("Arial", 12))
+        self.status_label.pack()
+
+        total_width = MARGIN + 2 * (CELL_SIZE * GRID_SIZE) + 40
+        total_height = MARGIN + CELL_SIZE * GRID_SIZE
+        self.canvas = tk.Canvas(self.root, width=total_width, height=total_height + 80)
+        self.canvas.pack()
+
+        self.canvas.bind("<Button-1>", self.handle_click)
+        self.root.bind("r", self.toggle_orientation)
+
+        self.ship_frame = tk.Frame(self.root)
+        self.ship_frame.pack(pady=10)
+
+        for name in SHIP_CLASSES.keys():
+            btn = tk.Button(self.ship_frame, text=name, command=lambda n=name: self.select_ship(n))
+            btn.pack(side="left", padx=5)
+
+        rotate_btn = tk.Button(self.ship_frame, text="Rotate (R)", command=self.toggle_orientation)
+        rotate_btn.pack(side="left", padx=5)
+
+        self.draw_boards()
+
     def draw_boards(self):
-        self.player_canvas.create_image(0, 0, image=self.images['water'], anchor='nw', tags="background")
-        self.draw_grid(self.player_canvas)
-        
-        self.opponent_canvas.create_image(0, 0, image=self.images['water'], anchor='nw', tags="background")
-        self.draw_grid(self.opponent_canvas)
-    
-    def draw_grid(self, canvas):
-        for row in range(GRID_SIZE + 1):
-            canvas.create_line(0, row * CELL_SIZE, GRID_SIZE * CELL_SIZE, row * CELL_SIZE, fill="black")
-        for col in range(GRID_SIZE + 1):
-            canvas.create_line(col * CELL_SIZE, 0, col * CELL_SIZE, GRID_SIZE * CELL_SIZE, fill="black")
-    
-    def draw_ship_selection(self):
-        self.player_canvas.delete("ship_selection")
-        start_y = GRID_SIZE * CELL_SIZE + 10
-        
-        for i, (name, info) in enumerate(SHIPS.items()):
-            x = 10 + i * 120
-            y = start_y
-            
-            outline = "yellow" if self.selected_ship == name else "black"
-            width = 3 if self.selected_ship == name else 1
-            
-            if self.orientation == 'horizontal':
-                self.player_canvas.create_image(x, y, image=self.images[name], anchor='nw', tags=("ship_selection", f"ship_{name}"))
-                self.player_canvas.create_rectangle(x, y, x + info['size']*30, y + 30, 
-                                          outline=outline, width=width, tags="ship_selection")
-            else:
-                img = self.images.get(f"{name}_vertical", self.images[name])
-                self.player_canvas.create_image(x, y, image=img, anchor='nw', tags=("ship_selection", f"ship_{name}"))
-                self.player_canvas.create_rectangle(x, y, x + 30, y + info['size']*30, 
-                                          outline=outline, width=width, tags="ship_selection")
-            
-            self.player_canvas.create_text(x + 50, y + (info['size']*30 if self.orientation == 'vertical' else 30) + 15, 
-                                  text=f"{name} ({self.available_ships[name]} left)",
-                                  font=('Arial', 8), tags="ship_selection")
-    
+        self.canvas.delete("all")
+        px1 = MARGIN
+        px2 = MARGIN + GRID_SIZE * CELL_SIZE + 40
+
+        # Backgrounds
+        self.canvas.create_image(px1, MARGIN, image=self.images['water'], anchor="nw")
+        self.canvas.create_image(px2, MARGIN, image=self.images['water'], anchor="nw")
+
+        # Grid + Labels
+        for i in range(GRID_SIZE):
+            letter = chr(ord('A') + i)
+            number = str(i)
+
+            self.canvas.create_text(px1 + i * CELL_SIZE + CELL_SIZE / 2, MARGIN / 2, text=letter)
+            self.canvas.create_text(px2 + i * CELL_SIZE + CELL_SIZE / 2, MARGIN / 2, text=letter)
+
+            self.canvas.create_text(MARGIN / 2, MARGIN + i * CELL_SIZE + CELL_SIZE / 2, text=number)
+            self.canvas.create_text(px2 - 20, MARGIN + i * CELL_SIZE + CELL_SIZE / 2, text=number)
+
+            for j in range(GRID_SIZE):
+                x1 = px1 + j * CELL_SIZE
+                y1 = MARGIN + i * CELL_SIZE
+                self.canvas.create_rectangle(x1, y1, x1 + CELL_SIZE, y1 + CELL_SIZE, outline="black")
+
+                x2 = px2 + j * CELL_SIZE
+                self.canvas.create_rectangle(x2, y1, x2 + CELL_SIZE, y1 + CELL_SIZE, outline="black")
+
+        self.draw_ships()
+        self.draw_attacks()
+
+    def draw_ships(self):
+        board = self.current_player.board if self.phase != "battle" else self.player1.board
+        px = MARGIN
+
+        for ship in getattr(board, "ships", []):
+            if not ship.is_placed:
+                continue
+            row, col = ship.position[0]
+            x = px + col * CELL_SIZE
+            y = MARGIN + row * CELL_SIZE
+            name = ship.__class__.__name__
+            orientation_suffix = "" if ship.orientation.value == "H" else "_V"
+            img = self.images.get(name + orientation_suffix)
+            if img:
+                self.canvas.create_image(x, y, image=img, anchor="nw")
+
+    def draw_attacks(self):
+        for player, px in [(self.player1, MARGIN + GRID_SIZE * CELL_SIZE + 40), (self.player2, MARGIN)]:
+            board = player.opponent_board
+            for r in range(GRID_SIZE):
+                for c in range(GRID_SIZE):
+                    mark = board.grid[r][c]
+                    x = px + c * CELL_SIZE
+                    y = MARGIN + r * CELL_SIZE
+                    if mark == "X":
+                        self.canvas.create_oval(x+10, y+10, x+40, y+40, fill="red")
+                    elif mark == "O":
+                        self.canvas.create_oval(x+15, y+15, x+35, y+35, outline="blue")
+
+    def select_ship(self, ship_name):
+        if self.remaining_ships[ship_name] > 0:
+            self.selected_ship = ship_name
+            self.status_label.config(text=f"{self.current_player.name}: selected {ship_name} ({self.orientation})")
+        else:
+            messagebox.showinfo("Unavailable", f"No {ship_name}s left to place.")
+
+    def toggle_orientation(self, event=None):
+        self.orientation = "V" if self.orientation == "H" else "H"
+        self.status_label.config(text=f"{self.current_player.name} orientation: {self.orientation}")
+
     def handle_click(self, event):
-        if event.y > GRID_SIZE * CELL_SIZE:
-            self.select_ship(event.x, event.y)
-        elif self.selected_ship and self.available_ships[self.selected_ship] > 0:
-            self.place_ship(event.x, event.y)
-    
-    def select_ship(self, x, y):
-        start_y = GRID_SIZE * CELL_SIZE + 10
-        
-        for name, info in SHIPS.items():
-            ship_x = 10 + list(SHIPS.keys()).index(name) * 120
-            ship_y = start_y
-            
-            if self.orientation == 'horizontal':
-                if (ship_x <= x <= ship_x + info['size']*30) and (ship_y <= y <= ship_y + 30):
-                    if self.available_ships[name] > 0:
-                        self.selected_ship = name
-                    else:
-                        messagebox.showinfo("No Ships Left", f"You've placed all available {name}s")
-                    break
-            else:
-                if (ship_x <= x <= ship_x + 30) and (ship_y <= y <= ship_y + info['size']*30):
-                    if self.available_ships[name] > 0:
-                        self.selected_ship = name
-                    else:
-                        messagebox.showinfo("No Ships Left", f"You've placed all available {name}s")
-                    break
-        else:
-            self.selected_ship = None
-        
-        self.draw_ship_selection()
-    
-    def place_ship(self, x, y):
-        col = x // CELL_SIZE
-        row = y // CELL_SIZE
-        ship_info = SHIPS[self.selected_ship]
-        ship_size = ship_info['size']
-        
-        if (self.orientation == 'horizontal' and col + ship_size > GRID_SIZE) or \
-           (self.orientation == 'vertical' and row + ship_size > GRID_SIZE):
-            messagebox.showwarning("Invalid Position", "Ship doesn't fit there!")
+        x, y = event.x, event.y
+        col = (x - MARGIN) // CELL_SIZE
+        row = (y - MARGIN) // CELL_SIZE
+
+        if not (0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE):
             return
-        
-        for ship in self.placed_ships:
-            s_name, s_row, s_col, s_size, s_orient = ship
-            
-            if self.orientation == 'horizontal' and s_orient == 'horizontal':
-                if row == s_row and not (col + ship_size <= s_col or col >= s_col + s_size):
-                    messagebox.showwarning("Invalid Position", "Ships overlap!")
-                    return
-            elif self.orientation == 'horizontal' and s_orient == 'vertical':
-                if (s_col <= col < s_col + 1) and (row <= s_row + s_size - 1) and (row >= s_row):
-                    messagebox.showwarning("Invalid Position", "Ships overlap!")
-                    return
-            elif self.orientation == 'vertical' and s_orient == 'horizontal':
-                if (col <= s_col + s_size - 1) and (col >= s_col) and (s_row <= row < s_row + 1):
-                    messagebox.showwarning("Invalid Position", "Ships overlap!")
-                    return
-            elif self.orientation == 'vertical' and s_orient == 'vertical':
-                if col == s_col and not (row + ship_size <= s_row or row >= s_row + s_size):
-                    messagebox.showwarning("Invalid Position", "Ships overlap!")
-                    return
-        
-        self.placed_ships.append((self.selected_ship, row, col, ship_size, self.orientation))
-        self.available_ships[self.selected_ship] -= 1
-        
-        self.draw_ship_on_grid()
-        
-        self.update_status()
-        
-        self.selected_ship = None
-        self.draw_ship_selection()
-    
-    def draw_ship_on_grid(self):
-        self.player_canvas.delete("ship")
-        for ship in self.placed_ships:
-            name, row, col, size, orientation = ship
-            
-            x = col * CELL_SIZE
-            y = row * CELL_SIZE
-            
-            if orientation == 'horizontal':
-                self.player_canvas.create_image(x, y, image=self.images[name], anchor='nw', tags="ship")
-            else:
-                vertical_img_name = f"{name}_vertical"
-                if vertical_img_name in self.images:
-                    self.player_canvas.create_image(x, y, image=self.images[vertical_img_name], anchor='nw', tags="ship")
-                else:
-                    self.player_canvas.create_rectangle(x, y, x + CELL_SIZE, y + size * CELL_SIZE, 
-                                              fill="gray", outline="black", tags="ship")
-    
-    def rotate_ship(self, event):
-        if self.selected_ship:
-            self.orientation = 'vertical' if self.orientation == 'horizontal' else 'horizontal'
-            self.draw_ship_selection()
-    
-    def update_status(self):
-        remaining = sum(self.available_ships.values())
-        if remaining == 0:
-            self.status_label.config(text="All ships placed! Ready to play.")
+
+        if self.phase.startswith("placement"):
+            self.place_ship_on_board(row, col)
+        elif self.phase == "battle":
+            if x < MARGIN + GRID_SIZE * CELL_SIZE:
+                return
+            self.attack_cell(row, col)
+
+    def place_ship_on_board(self, row, col):
+        if not self.selected_ship:
+            messagebox.showinfo("Select Ship", "Please select a ship first.")
+            return
+
+        ShipClass, _, _, _ = SHIP_CLASSES[self.selected_ship]
+        ship = ShipClass()
+
+        try:
+            placed = ship.place_ship(row, col, self.orientation, self.current_player.board)
+            if placed:
+                self.remaining_ships[self.selected_ship] -= 1
+                if not hasattr(self.current_player.board, "ships"):
+                    self.current_player.board.ships = []
+                self.current_player.board.ships.append(ship)
+                self.selected_ship = None
+
+                if sum(self.remaining_ships.values()) == 0:
+                    if self.phase == "placement_p1":
+                        Ship.reset_counters()
+                        self.phase = "placement_p2"
+                        self.current_player = self.player2
+                        self.opponent = self.player1
+                        self.remaining_ships = self.init_remaining_ships()
+                        self.status_label.config(text="Player 2: Place your ships")
+                    else:
+                        self.phase = "battle"
+                        self.current_player = self.player1
+                        self.opponent = self.player2
+                        self.status_label.config(text="Battle begins! Player 1's turn")
+
+                self.draw_boards()
+        except ValueError as e:
+            messagebox.showwarning("Invalid Placement", str(e))
+
+    def attack_cell(self, row, col):
+        result = self.opponent.board.receive_attack(row, col)
+
+        if result == "repeat":
+            messagebox.showinfo("Repeated", "You already attacked this cell.")
+            return
+
+        if result == "hit":
+            self.current_player.opponent_board.grid[row][col] = "X"
+            self.status_label.config(text=f"{self.current_player.name} hit! Go again.")
         else:
-            self.status_label.config(text=f"Place your ships ({remaining} remaining). Select ship, click grid. Press 'R' to rotate.")
+            self.current_player.opponent_board.grid[row][col] = "O"
+            self.status_label.config(text=f"{self.current_player.name} missed. Switching turns.")
+            self.current_player, self.opponent = self.opponent, self.current_player
+
+        self.draw_boards()
+
+        if self.opponent.board.all_ships_sunk():
+            self.status_label.config(text=f"{self.current_player.name} wins!")
+            messagebox.showinfo("Victory", f"{self.current_player.name} wins!")
+            self.canvas.unbind("<Button-1>")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
-    game = BattleshipGame(root)
+    app = BattleshipGUI(root)
     root.mainloop()
+
