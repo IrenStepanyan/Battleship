@@ -3,9 +3,9 @@ from gui_test import BattleshipGUI
 
 def main():
     root = tk.Tk()
-    game = BattleshipGUI(root)
+    root.configure(bg='#F4A460')  # Sand-colored background
+    app = BattleshipGUI(root)
     root.mainloop()
 
 if __name__ == "__main__":
     main()
-
